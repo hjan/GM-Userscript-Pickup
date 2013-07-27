@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           PlayQuake Team Information
 // @namespace      playquake.com
-// @version        1.0
+// @version        1.1-dev
 // @description    Get the latest teams for a certain Quakelive server used in a pickup-game
 // @author         smove
 // @include        http://*.quakelive.com/*
@@ -43,28 +43,34 @@ function handleTeamRequest(event) {
 	}
 
 	// only team-request allowed here
-	if (!(request.type) || "PQ:teamRequest" != request.type) {
+	if (!(request.type)) {
 		return;
 	}
 
-	GM_xmlhttpRequest({
-		method : 'GET',
-		url : 'http://bot.xurv.org/teams.php?id=' + request.serverID,
-		headers : {
-			"Content-Type" : "application/x-www-form-urlencoded"
-		},
-		onload : function(data) {
-			try {
-				var response = JSON.parse(data.responseText);
-				response.type = "PQ:response";
-			} catch (e) {
-				console.log("Couldn't parse requested data: " + e);
-				return;
-			}
-			window.postMessage(JSON.stringify(response), "*");
-		}
-
-	});
+    if ("PQ:teamRequest" == request.type || "PQ:mpRequest" == request.type) {
+        GM_xmlhttpRequest({
+            method : 'GET',
+            url : 'http://bot.xurv.org/teams.dev.php?id=' + request.serverID,
+            headers : {
+                "Content-Type" : "application/x-www-form-urlencoded"
+            },
+            onload : function(data) {
+                try {
+                    var response = JSON.parse(data.responseText);
+                    if ("PQ:teamRequest" == request.type) {
+                        response.type = "PQ:teamResponse";
+                    }
+                    if ("PQ:mpRequest" == request.type) {
+                        response.type = "PQ:mpResponse";
+                    }
+                } catch (e) {
+                    console.log("Couldn't parse requested data: " + e);
+                    return;
+                }
+                window.postMessage(JSON.stringify(response), "*");
+            }
+        });
+    }
 }
 window.addEventListener("message", handleTeamRequest, false);
 
@@ -83,44 +89,57 @@ contentEval(function() {
 			}
 
 			// only response messages allowed here
-			if (!(response.type) || "PQ:response" != response.type ) {
+			if (!(response.type)) {
 				return;
 			}
 		
 			if (response.ECODE < 0) {
-				qz_instance.SendGameCommand("echo Can't find any teams for this server.;");
-				return;
-			}
-			try {
-				var teamR = response.teamRed;
-				var teamB = response.teamBlue;
-				var mapPicker = response.mapPicker;
-			} catch (e) {
-				console.log("Couldn't parse the teams: " + e);
+				qz_instance.SendGameCommand("echo Can't find any data for this server.;");
 				return;
 			}
 
-			var teamRString = "^1Red:^7 ";
-			var teamBString = "^4Blue:^7 ";
-			var tmp;
-			for ( var i = 0; i < teamR.length; i++) {
-				tmp = teamR[i];
-				if (teamR[i] == mapPicker) {
-					tmp = "^3" + teamR[i] + "^7";
-				}
-				teamRString += tmp + " ";				
-			}			
-			for ( var i = 0; i < teamB.length; i++) {
-				tmp = teamB[i];
-				if (teamB[i] == mapPicker) {
-					tmp = "^3" + teamB[i] + "^7";
-				}
-				teamBString += tmp + " ";
-			}
-			qz_instance.SendGameCommand('say ' + teamRString + ';');
-			setTimeout(function(){
-				qz_instance.SendGameCommand('say ' + teamBString + ';');
-			}, 700);
+            if ("PQ:mpResponse" == response.type) {
+                try {
+                    var mapPicker = response.mapPicker;
+                } catch (e) {
+                    console.log("Couldn't parse the teams: " + e);
+                    return;
+                }
+                qz_instance.SendGameCommand('say ^3Mappicker:^7 ' + mapPicker + ';');
+            }
+            
+            if ("PQ:teamResponse" == response.type) {
+                try {
+                    var teamR = response.teamRed;
+                    var teamB = response.teamBlue;
+                    var mapPicker = response.mapPicker;
+                } catch (e) {
+                    console.log("Couldn't parse the teams: " + e);
+                    return;
+                }
+
+                var teamRString = "^1Red:^7 ";
+                var teamBString = "^4Blue:^7 ";
+                var tmp;
+                for ( var i = 0; i < teamR.length; i++) {
+                    tmp = teamR[i];
+                    if (teamR[i] == mapPicker) {
+                        tmp = "^3" + teamR[i] + "^7";
+                    }
+                    teamRString += tmp + " ";				
+                }			
+                for ( var i = 0; i < teamB.length; i++) {
+                    tmp = teamB[i];
+                    if (teamB[i] == mapPicker) {
+                        tmp = "^3" + teamB[i] + "^7";
+                    }
+                    teamBString += tmp + " ";
+                }
+                qz_instance.SendGameCommand('say ' + teamRString + ';');
+                setTimeout(function(){
+                    qz_instance.SendGameCommand('say ' + teamBString + ';');
+                }, 700);
+            }
 		}
 	};
 	window.addEventListener("message", PQT.handleResponse, false);
@@ -139,7 +158,7 @@ contentEval(function() {
 			dft : 0,
 			fn : function(val) {
 				if (!quakelive.currentServerId) {
-					qz_instance.SendGameCommand("echo Pickup with Bots? Have fun.;");
+					qz_instance.SendGameCommand("echo Pickup with Bots? Good luck with that....;");
 				} else {
 					window.postMessage(JSON.stringify({
 						"serverID" : quakelive.currentServerId,
@@ -147,7 +166,22 @@ contentEval(function() {
 					}), "*");
 				}
 			}
-		}		
+		},
+        mappicker : {
+            params : false,
+            dft : 0,
+            fn : function(val) {
+                if (!quakelive.currentServerId) {
+                    qz_instance.SendGameCommand("echo Pickup with Bots? Good luck with that...;");
+                } else {
+                    window.postMessage(JSON.stringify({
+                        "serverID" : quakelive.currentServerId,
+                        "type" : "PQ:mpRequest"
+                    }), "*");
+                }
+            }
+        }
+
 	};
 	var oldLaunchGame = LaunchGame, ready;
 	LaunchGame = function(params, server) {
