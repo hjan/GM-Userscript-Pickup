@@ -50,7 +50,7 @@ function handleTeamRequest(event) {
     if ("PQ:teamRequest" == request.type || "PQ:mpRequest" == request.type) {
         GM_xmlhttpRequest({
             method : 'GET',
-            url : 'http://bot.xurv.org/teams.dev.php?id=' + request.serverID,
+            url : 'http://localhost:8080/channel/bot.dev/teams/' + request.serverID,
             headers : {
                 "Content-Type" : "application/x-www-form-urlencoded"
             },
@@ -100,7 +100,7 @@ contentEval(function() {
 
             if ("PQ:mpResponse" == response.type) {
                 try {
-                    var mapPicker = response.mapPicker;
+                    var mapPicker = response.MAP_PICKER.QL_NICK;
                 } catch (e) {
                     console.log("Couldn't parse the teams: " + e);
                     return;
@@ -110,8 +110,8 @@ contentEval(function() {
             
             if ("PQ:teamResponse" == response.type) {
                 try {
-                    var teamR = response.teamRed;
-                    var teamB = response.teamBlue;
+                    var teamR = response.TEAM_RED;
+                    var teamB = response.TEAM_BLUE;
                     var mapPicker = response.mapPicker;
                 } catch (e) {
                     console.log("Couldn't parse the teams: " + e);
@@ -122,16 +122,16 @@ contentEval(function() {
                 var teamBString = "^4Blue:^7 ";
                 var tmp;
                 for ( var i = 0; i < teamR.length; i++) {
-                    tmp = teamR[i];
-                    if (teamR[i] == mapPicker) {
-                        tmp = "^3" + teamR[i] + "^7";
+                    tmp = teamR[i].QL_NICK;
+                    if (teamR[i].QL_NICK == mapPicker) {
+                        tmp = "^3" + teamR[i].QL_NICK + "^7";
                     }
                     teamRString += tmp + " ";				
                 }			
                 for ( var i = 0; i < teamB.length; i++) {
-                    tmp = teamB[i];
-                    if (teamB[i] == mapPicker) {
-                        tmp = "^3" + teamB[i] + "^7";
+                    tmp = teamB[i].QL_NICK;
+                    if (teamB[i].QL_NICK == mapPicker) {
+                        tmp = "^3" + teamB[i].QL_NICK + "^7";
                     }
                     teamBString += tmp + " ";
                 }
