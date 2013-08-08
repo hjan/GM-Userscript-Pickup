@@ -2,6 +2,7 @@
 // @name           PlayQuake Team Information
 // @namespace      playquake.com
 // @version        1.1-dev
+// @license 	   GPL version 3 or any later version; http://www.gnu.org/copyleft/gpl.html
 // @description    Get the latest teams for a certain Quakelive server used in a pickup-game
 // @author         smove
 // @include        http://*.quakelive.com/*
