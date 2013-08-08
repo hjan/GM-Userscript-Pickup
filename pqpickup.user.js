@@ -32,19 +32,63 @@ function contentEval(source) {
 }
 
 function pollLiveData(event) {
+	var request;
+	try {
+		request = JSON.parse(event.data);		
+	} catch (e) {
+		return;
+	}
 
-	setTimeout(function() {
-		GM_xmlhttpRequest({
-			method: 'GET',
-			url : 'http://bot.xurv.org/teams.dev.php?id=',
-			
-		});
-	}, 500);
+	// only live request allowed here
+	if (!(request.type) || request.type != "PQ:liveDataRequest") {
+		return;
+	}
+	
+	GM_xmlhttpRequest({
+		method: 'GET',
+		url : 'http://localhost:8080/channel/bot.dev/live',
+		timeout: 500,
+		onload: function(data) {
+			try {
+				var response = JSON.parse(data.responseText);
+				if (response.ECODE < 0) {
+					console.log(response.MSG);
+					return;
+				}
+				document.getElementById("ql_pickup_added_player").innerHTML = "Added players: " + response.ADDED_PLAYERS;
+				
+			} catch (e) {
+                console.log("Couldn't parse requested data: " + e);
+                return;
+			}
+			setTimeout(function() {
+						var msg = {
+								"type" : "PQ:liveDataRequest"
+						};
+						window.postMessage(JSON.stringify(msg), "*");
+					}, 
+					1000
+			);
+		},
+		onerror: function(XMLHttpRequest, textStatus, error) {
+			console.log("Can't poll data...");
+			setTimeout(function() {
+						var msg = {
+								"type" : "PQ:liveDataRequest"
+						};
+						window.postMessage(JSON.stringify(msg), "*");
+						},
+					10000
+			);
+		}
+	});
 }
+window.addEventListener("message", pollLiveData, false);
+
 /*
  * This will handle the team-request-event send by /teams within QL
  */
-function handleTeamRequest(event) {
+function handleRequest(event) {
 	var request;
 	try {
 		request = JSON.parse(event.data);
@@ -52,7 +96,6 @@ function handleTeamRequest(event) {
 		return;
 	}
 
-	// only team-request allowed here
 	if (!(request.type)) {
 		return;
 	}
@@ -87,7 +130,7 @@ function handleTeamRequest(event) {
         });
     }
 }
-window.addEventListener("message", handleTeamRequest, false);
+window.addEventListener("message", handleRequest, false);
 
 /*
  * Hopefully we'll get a response to our request, this function takes care of it
@@ -217,16 +260,10 @@ GM_addStyle(
 	"    padding: 0;" +
 	"    margin: 0 0 10px 0;" +
 	"    font-weight: bold;" +
-	"	 background: #e7e7e7 url('http://cdn.quakelive.com/images/invites_title_v2013022600.0.png') no-repeat left top;" +
+	"	 background: #e7e7e7;" +
 	"    border: 1px solid rgb(57, 57, 57);" +
 	"}" +
-	".ql_pickup_head {" +
-	"    width: 290px;" +
-	"    height: 30px;" +
-	"    margin: 4px 0 0 9px;" +
-	"    font-size: 18px;" +
-	"    font-weight: bold;" +
-	"}" +
+	"" +
 	".ql_pickup_cnt span {" +
 	"    width: 290px;" +
 	"    color: #000;" +
@@ -249,9 +286,10 @@ contentEval(function() {
 		intStatusTop = null;
 
 		$tb.before("" +
+				"<img width='300' height='24' src='http://bot.xurv.org/banner_LivePickupInfo.png' /><br />" +
 				"<div id='ql_pickup_info'>" +
-				"<div class='ql_pickup_head'>Pickup Live Info</div>" +
 				"<div class='ql_pickup_cnt'>" +
+				" <p id='ql_pickup_added_player'></p>" +
 				" <span>Players: 3/8</span><br />" +
 				" <span>Server: Link</span>" +
 				"</div>" +
@@ -260,8 +298,7 @@ contentEval(function() {
 		
 		// once we've added our section, poll for pickup data
 		var msg = {
-			"type" : "PQ:liveDataRequest",
-			"user" : quakelive.username
+			"type" : "PQ:liveDataRequest"
 		};
 		window.postMessage(JSON.stringify(msg), "*");
 		
