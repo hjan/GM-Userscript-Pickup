@@ -177,21 +177,21 @@ contentEval(function() {
 							return;
 						}
 								
-						var p_players = response.teamRed.concat(response.teamBlue);
+						var p_players = response.TEAM_RED.concat(response.TEAM_BLUE);
 						var missing_players = "^3Missing:^7 ";
 						var c = 0;
 						for (i in p_players) {
 //							console.log(p_players[i] + " needs an invite? " + PQT.isStandardUser(p_players[i]));
 							var found = false;
 							for (j in sv.players) {
-								if (p_players[i] == sv.players[j].name) {
+								if (p_players[i].QL_NICK == sv.players[j].name) {
 									found = true;
 									break;
 								} 
 							}
 							if (!found) {
 								c++;
-								missing_players += p_players[i] + " ";
+								missing_players += p_players[i].QL_NICK + " ";
 							}
 						}
 						if (!c) {
@@ -218,7 +218,7 @@ contentEval(function() {
                 try {
                     var teamR = response.TEAM_RED;
                     var teamB = response.TEAM_BLUE;
-                    var mapPicker = response.mapPicker;
+                    var mapPicker = response.MAP_PICKER.QL_NICK;
                 } catch (e) {
                     console.log("Couldn't parse the teams: " + e);
                     return;
