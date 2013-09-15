@@ -33,6 +33,7 @@ function contentEval(source) {
 }
 
 function pollLiveData(event) {
+	console.log("start polling...");
 	var request;
 	try {
 		request = JSON.parse(event.data);		
@@ -47,16 +48,30 @@ function pollLiveData(event) {
 	
 	GM_xmlhttpRequest({
 		method: 'GET',
-		url : 'http://localhost:8080/channel/bot.dev/live',
+		url : 'http://api.ctfpickup.eu:23007/channel/ctfpickup/live',
 		timeout: 500,
 		onload: function(data) {
+			if (document.getElementById("ql_pickup_added_player") == null) {
+				console.log("sup here: " + PQT.liveHtml);
+				document.getElementById("ql_pickup_cnt").innerHTML = PQT.liveHtml;
+				document.getElementById("ql_pickup_cnt").style.height = "130px";
+				document.getElementById("ql_pickup_cnt").style.textAlign = "left";
+			}
+			
 			try {
 				var response = JSON.parse(data.responseText);
 				if (response.ECODE < 0) {
 					console.log(response.MSG);
 					return;
 				}
-				document.getElementById("ql_pickup_added_player").innerHTML = "Added players: " + response.ADDED_PLAYERS;
+				document.getElementById("ql_pickup_added_player").innerHTML = response.ADDED_PLAYERS + " / " + response.PLAYERS_TO_START;
+				var $sv = document.getElementById("ql_pickup_game_sv");
+				if (response.GAME_SERVER == null) {
+					$sv.innerHTML = "No Server added yet.";
+				} else {
+					$sv.innerHTML = "<a href='" + response.GAME_SERVER.SV_LINK + "'>Join Server</a>";
+				}
+				document.getElementById("ql_pickup_lastgame").innerHTML = response.LAST_GAME + " ago";
 				
 			} catch (e) {
                 console.log("Couldn't parse requested data: " + e);
@@ -73,6 +88,9 @@ function pollLiveData(event) {
 		},
 		onerror: function(XMLHttpRequest, textStatus, error) {
 			console.log("Can't poll data...");
+			document.getElementById("ql_pickup_cnt").innerHTML = "<p style='margin: 3px 0 0 0; font-size: 12px;'><b>Service not available at the moment.</b></p>";
+			document.getElementById("ql_pickup_cnt").style.height = "20px";
+			document.getElementById("ql_pickup_cnt").style.textAlign = "center";
 			setTimeout(function() {
 						var msg = {
 								"type" : "PQ:liveDataRequest"
@@ -106,7 +124,7 @@ function handleRequest(event) {
     	|| "PQ:missRequest" == request.type) {
         GM_xmlhttpRequest({
             method : 'GET',
-            url : 'http://localhost:8080/channel/bot.dev/teams/' + request.serverID,
+            url : 'http://api.ctfpickup.eu:23007/channel/ctfpickup/teams/' + request.serverID,
             headers : {
                 "Content-Type" : "application/x-www-form-urlencoded"
             },
@@ -130,6 +148,26 @@ function handleRequest(event) {
             }
         });
     }
+    
+    if ("PQ:playerDataRequest" == request.type) {
+        GM_xmlhttpRequest({
+            method : 'GET',
+            url : 'http://api.ctfpickup.eu:23007/channel/ctfpickup/player/' + request.username,
+            headers : {
+                "Content-Type" : "application/x-www-form-urlencoded"
+            },
+            onload : function(data) {
+                try {
+                    var response = JSON.parse(data.responseText);
+                    response.type = "PQ:playerDataResponse";
+                } catch (e) {
+                    console.log("Couldn't parse requested data: " + e);
+                    return;
+                }
+                window.postMessage(JSON.stringify(response), "*");
+            }
+        });
+    }
 }
 window.addEventListener("message", handleRequest, false);
 
@@ -138,6 +176,25 @@ window.addEventListener("message", handleRequest, false);
  */
 contentEval(function() {
 	PQT = {
+		liveHtml : "" +
+			"<img width='300' height='24' src='http://bot.xurv.org/banner_LivePickupInfo.png' /><br />" +
+			"<div id='ql_pickup_cnt'>" +
+			" <div id='ql_pickup_channel'>" +
+			"  <a href='irc://irc.quakenet.org/#ctfpickup'><b>#ctfpickup</b></a><br />" +
+			"  <p><b>Last Game:</b> <span id='ql_pickup_lastgame'></span></p>" +
+			"  <p><b>Added Players:</b> <span id='ql_pickup_added_player'></span></p>" +
+			"  <p><b>Server Link:</b> <span id='ql_pickup_game_sv'></span></p>" +
+			" </div>" +
+			" <div id='ql_pickup_player_stat'>" +
+			"  <br /><b>Player Stats</b><br />" +		
+			"  <table><tr><td><b>Rating:</b> <span id='ql_pickup_player_rating'></span></td>" +
+			"  <td><b>WinRatio:</b> <span id='ql_pickup_player_winratio'></span></td></tr>" +
+			"  <tr><td><b>AvgScore:</b> <span id='ql_pickup_player_score'></span></td>" +
+			"  <td><b>* / 30 / 7:</b> <span id='ql_pickup_player_played'></span></td></tr>" +
+			"  </table>" +
+			" </div>" +
+			"</div>" +
+			"",
 /*		 isStandardUser : function(player) {
 			GM_xmlhttpRequest({
 					synchronous : true,
@@ -248,30 +305,65 @@ contentEval(function() {
                 }, 700);
                 return;
             }
+            
+            if ("PQ:playerDataResponse" == response.type) {
+            	if (response.ECODE < 0) {
+            		$("#ql_pickup_player_stat").html("You may have not yet played a game in that channel." +
+            			"<br />No data available.");
+            		return;
+            	}
+            	$("#ql_pickup_player_rating").html(response.RATING);
+            	$("#ql_pickup_player_winratio").html(response.WIN_RATIO);
+            	$("#ql_pickup_player_score").html(response.AVG_SCORE);
+            	$("#ql_pickup_player_played").html(response.PLAYED_OVERALL + " / " +
+            									   response.PLAYED_LAST_30_DAYS + " / " +
+            									   response.PLAYED_LAST_7_DAYS + " / ");
+            }
 		}
 	};
 	window.addEventListener("message", PQT.handleResponse, false);
 });
 
-GM_addStyle(
-	"#ql_pickup_info {" +
-	"    width: 298px;" +
-	"    height: 75px;" +
-	"    text-align: left;" +
-	"    padding: 0;" +
-	"    margin: 0 0 10px 0;" +
-	"    font-weight: bold;" +
-	"	 background: #e7e7e7;" +
-	"    border: 1px solid rgb(57, 57, 57);" +
-	"}" +
-	"" +
-	".ql_pickup_cnt span {" +
-	"    width: 290px;" +
-	"    color: #000;" +
-	"    margin: 0 0 0 9px;" +
-	"    font-size: 11px;" +
-	"    font-weight: normal;" +
-	"}"
+GM_addStyle(	
+		"" +
+		"#ql_pickup_cnt {" +
+		"    width: 298px;" +
+		"    height: 130px;" +
+		"    text-align: left;" +
+		"    color: #000;" +
+		"    margin: 0 0 10px 0;" +
+		"    font-size: 11px;" +
+		"    font-weight: normal;" +
+		"	 background: #e7e7e7;" +
+		"    border: 1px solid rgb(57, 57, 57);" +
+		"}" +
+		"#ql_pickup_cnt div {" +
+		"    margin: 0 0 0 9px;" +
+		"}" +
+		"#ql_pickup_cnt p {" +
+		"    width: 290px;" +
+		"    color: #000;" +
+		"    margin: 0 0 0 27px;" +
+		"    font-size: 11px;" +
+		"    font-weight: normal;" +
+		"}" +
+		"#ql_pickup_cnt table {" +
+		"    margin: 2px 0 0 18px;" +
+		"}" +
+		"#ql_pickup_cnt td {" +
+		"    color: #000;" +
+		"    padding: 0 0 0 9px;" +
+		"    font-size: 11px;" +
+		"    font-weight: normal;" +
+		"}" +
+		"#ql_pickup_cnt a {" +
+		"    color: #DB3213;" +
+		"    font-size: 12px;" +
+		"    font-weight: normal;" +
+		"    line-height: 20px;" +
+		"    margin-right: 5px;" +
+		"    text-decoration: none;" +
+		"}"
 );
 
 contentEval(function() {
@@ -285,22 +377,20 @@ contentEval(function() {
 		}
 		clearInterval(intStatusTop);
 		intStatusTop = null;
-
-		$tb.before("" +
-				"<img width='300' height='24' src='http://bot.xurv.org/banner_LivePickupInfo.png' /><br />" +
-				"<div id='ql_pickup_info'>" +
-				"<div class='ql_pickup_cnt'>" +
-				" <p id='ql_pickup_added_player'></p>" +
-				" <span>Players: 3/8</span><br />" +
-				" <span>Server: Link</span>" +
-				"</div>" +
-				"</div>" +
-				"");
-		
+		console.log("adding html: " + PQT.liveHtml);
+		$tb.before(PQT.liveHtml);
+				
 		// once we've added our section, poll for pickup data
 		var msg = {
 			"type" : "PQ:liveDataRequest"
 		};
+		window.postMessage(JSON.stringify(msg), "*");
+		
+		msg = {
+			"type" : "PQ:playerDataRequest",
+			"username" : quakelive.username
+		};
+		console.log("sending playerDataRequest");
 		window.postMessage(JSON.stringify(msg), "*");
 		
 	}, 100);
