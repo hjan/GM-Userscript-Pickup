@@ -242,7 +242,7 @@ contentEval(function() {
 //							console.log(p_players[i] + " needs an invite? " + PQT.isStandardUser(p_players[i]));
 							var found = false;
 							for (j in sv.players) {
-								if (p_players[i].QL_NICK == sv.players[j].name) {
+								if (p_players[i].QL_NICK.toLowerCase() == sv.players[j].name.toLowerCase()) {
 									found = true;
 									break;
 								} 
@@ -252,7 +252,7 @@ contentEval(function() {
 								missing_players += p_players[i].QL_NICK + " ";
 							}
 						}
-						if (!c) {
+						if (c == 0) {
 							missing_players += "No one is missing. Pickup is ready to start.";
 						}
 						qz_instance.SendGameCommand('say ' + missing_players + ';');
