@@ -2,7 +2,7 @@
 // @name           PlayQuake Team Information
 // @namespace      playquake.com
 // @version        1.1-dev
-// @license 	   GPL version 3 or any later version; http://www.gnu.org/copyleft/gpl.html
+// @license        GPL version 3 or any later version; http://www.gnu.org/copyleft/gpl.html
 // @description    Get the latest teams for a certain Quakelive server used in a pickup-game
 // @author         smove
 // @include        http://*.quakelive.com/*
@@ -33,7 +33,6 @@ function contentEval(source) {
 }
 
 function pollLiveData(event) {
-	console.log("start polling...");
 	var request;
 	try {
 		request = JSON.parse(event.data);		
@@ -52,7 +51,6 @@ function pollLiveData(event) {
 		timeout: 500,
 		onload: function(data) {
 			if (document.getElementById("ql_pickup_added_player") == null) {
-				console.log("sup here: " + PQT.liveHtml);
 				document.getElementById("ql_pickup_cnt").innerHTML = PQT.liveHtml;
 				document.getElementById("ql_pickup_cnt").style.height = "130px";
 				document.getElementById("ql_pickup_cnt").style.textAlign = "left";
@@ -61,7 +59,7 @@ function pollLiveData(event) {
 			try {
 				var response = JSON.parse(data.responseText);
 				if (response.ECODE < 0) {
-					console.log(response.MSG);
+					GM_log(response.MSG);
 					return;
 				}
 				document.getElementById("ql_pickup_added_player").innerHTML = response.ADDED_PLAYERS + " / " + response.PLAYERS_TO_START;
@@ -74,7 +72,7 @@ function pollLiveData(event) {
 				document.getElementById("ql_pickup_lastgame").innerHTML = response.LAST_GAME + " ago";
 				
 			} catch (e) {
-                console.log("Couldn't parse requested data: " + e);
+                GM_log("Couldn't parse requested data: " + e);
                 return;
 			}
 			setTimeout(function() {
@@ -87,7 +85,6 @@ function pollLiveData(event) {
 			);
 		},
 		onerror: function(XMLHttpRequest, textStatus, error) {
-			console.log("Can't poll data...");
 			document.getElementById("ql_pickup_cnt").innerHTML = "<p style='margin: 3px 0 0 0; font-size: 12px;'><b>Service not available at the moment.</b></p>";
 			document.getElementById("ql_pickup_cnt").style.height = "20px";
 			document.getElementById("ql_pickup_cnt").style.textAlign = "center";
@@ -141,7 +138,7 @@ function handleRequest(event) {
                         response.type = "PQ:missResponse";
                     }
                 } catch (e) {
-                    console.log("Couldn't parse requested data: " + e);
+                    GM_log("Couldn't parse requested data: " + e);
                     return;
                 }
                 window.postMessage(JSON.stringify(response), "*");
@@ -161,7 +158,7 @@ function handleRequest(event) {
                     var response = JSON.parse(data.responseText);
                     response.type = "PQ:playerDataResponse";
                 } catch (e) {
-                    console.log("Couldn't parse requested data: " + e);
+                    GM_log("Couldn't parse requested data: " + e);
                     return;
                 }
                 window.postMessage(JSON.stringify(response), "*");
@@ -211,7 +208,7 @@ contentEval(function() {
 			try {
 				response = JSON.parse(event.data);
 			} catch (e) {
-				console.log("Couldn't parse event data: " + e);				
+				GM_log("Couldn't parse event data: " + e);				
 				return;
 			}
 
@@ -239,7 +236,6 @@ contentEval(function() {
 						var missing_players = "^3Missing:^7 ";
 						var c = 0;
 						for (i in p_players) {
-//							console.log(p_players[i] + " needs an invite? " + PQT.isStandardUser(p_players[i]));
 							var found = false;
 							for (j in sv.players) {
 								if (p_players[i].QL_NICK.toLowerCase() == sv.players[j].name.toLowerCase()) {
@@ -265,7 +261,7 @@ contentEval(function() {
                 try {
                     var mapPicker = response.MAP_PICKER.QL_NICK;
                 } catch (e) {
-                    console.log("Couldn't parse the teams: " + e);
+                    GM_log("Couldn't parse the teams: " + e);
                     return;
                 }
                 qz_instance.SendGameCommand('say ^3Mappicker:^7 ' + mapPicker + ';');
@@ -278,7 +274,7 @@ contentEval(function() {
                     var teamB = response.TEAM_BLUE;
                     var mapPicker = response.MAP_PICKER.QL_NICK;
                 } catch (e) {
-                    console.log("Couldn't parse the teams: " + e);
+                    GM_log("Couldn't parse the teams: " + e);
                     return;
                 }
 
@@ -377,7 +373,6 @@ contentEval(function() {
 		}
 		clearInterval(intStatusTop);
 		intStatusTop = null;
-		console.log("adding html: " + PQT.liveHtml);
 		$tb.before(PQT.liveHtml);
 				
 		// once we've added our section, poll for pickup data
@@ -390,7 +385,6 @@ contentEval(function() {
 			"type" : "PQ:playerDataRequest",
 			"username" : quakelive.username
 		};
-		console.log("sending playerDataRequest");
 		window.postMessage(JSON.stringify(msg), "*");
 		
 	}, 100);
