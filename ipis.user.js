@@ -24,7 +24,7 @@ var SCRIPT_NAME = "Integrated Pickup Information System",
 	SCRIPT_VER	= "0.9",
 	GM_updatingEnabled = "GM_updatingEnabled" in window ? GM_updatingEnabled : false;
 
-var API_URL = 'http://api.ctfpickup.eu:23007/'
+var API_URL = 'http://api.ctfpickup.eu:23007/';
 var IRC_CHANNEL = "ctfpickup";
 
 // Taken from: http://wiki.greasespot.net/Content_Script_Injection
@@ -425,7 +425,7 @@ contentEval(function() {
 						for (i in bPlayers) {
 							if (bPlayers[i].IS_CAPTAIN == true) {
 								captains += " ^4Blue:^7 " + bPlayers[i].QL_NICK;
-								if (rPlayers[i].HAS_FIRST_DROP == true) {
+								if (bPlayers[i].HAS_FIRST_DROP == true) {
 									captains += "*";
 								}
 							}
