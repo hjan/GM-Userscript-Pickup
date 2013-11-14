@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Integrated Pickup Information System
 // @namespace      Pickup
-// @version        0.9
+// @version        1.0
 // @license        GPL version 3 or any later version; http://www.gnu.org/copyleft/gpl.html
 // @description    Integration of pickup in Quake Live. Informations can be retrieved in-game and on the website.
 // @author         smove
@@ -21,7 +21,7 @@
 
 // a few things needed for update functionality
 var SCRIPT_NAME = "Integrated Pickup Information System",
-	SCRIPT_VER	= "0.9",
+	SCRIPT_VER	= "1.0",
 	GM_updatingEnabled = "GM_updatingEnabled" in window ? GM_updatingEnabled : false;
 
 var DOLITTLE = function () {};
@@ -54,7 +54,7 @@ function contentEval(source) {
 
 
 // register command to enable/disable info box through GM menu
-GM_registerMenuCommand(SCRIPT_NAME + "Toggle Information Box", function() {
+GM_registerMenuCommand(SCRIPT_NAME + ": Toggle Live Information Box", function() {
 	if (GM_getValue("DISPLAY_INFO_BOX", "none") == "none") {
 		document.getElementById("ql_pickup_info_box").style.display = "block";
 		GM_setValue("DISPLAY_INFO_BOX", "block");
