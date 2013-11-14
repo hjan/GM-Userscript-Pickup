@@ -53,18 +53,6 @@ function contentEval(source) {
 }
 
 
-// register command to enable/disable info box through GM menu
-GM_registerMenuCommand(SCRIPT_NAME + ": Toggle Live Information Box", function() {
-	if (GM_getValue("DISPLAY_INFO_BOX", "none") == "none") {
-		document.getElementById("ql_pickup_info_box").style.display = "block";
-		GM_setValue("DISPLAY_INFO_BOX", "block");
-	} else {
-		document.getElementById("ql_pickup_info_box").style.display = "none";
-		GM_setValue("DISPLAY_INFO_BOX", "none");
-	}
-},
-"i");
-
 // Don't bother if we're missing critical GM_ functions
 if ("undefined" == typeof(GM_xmlhttpRequest)) {
 	alert("Your browser/add-on doesn't support GM_xmlhttpRequest, which is "
@@ -209,6 +197,17 @@ if (!GM_updatingEnabled) {
 	AutoUpdater_166645.check();
 }
 
+//register command to enable/disable info box through GM menu
+GM_registerMenuCommand(SCRIPT_NAME + ": Toggle Live Information Box", function() {
+	if (GM_getValue("DISPLAY_INFO_BOX", "none") == "none") {
+		document.getElementById("ql_pickup_info_box").style.display = "block";
+		GM_setValue("DISPLAY_INFO_BOX", "block");
+	} else {
+		document.getElementById("ql_pickup_info_box").style.display = "none";
+		GM_setValue("DISPLAY_INFO_BOX", "none");
+	}
+});
+
 function pollLiveData(event) {
 	var request;
 	try {
@@ -236,12 +235,13 @@ function pollLiveData(event) {
 			try {
 				var response = JSON.parse(data.responseText);
 				if (response.ECODE < 0) {
-					GM_log(response.MSG);
-					var msg = {
-							"type" : "PQ:liveDataRequest",
-							"username" : request.username
-					};
-					window.postMessage(JSON.stringify(msg), "*");
+					setTimeout(function() {
+						var msg = {
+								"type" : "PQ:liveDataRequest",
+								"username" : request.username
+						};
+						window.postMessage(JSON.stringify(msg), "*");	
+					}, 10000);
 					return;
 				}
 				
@@ -321,12 +321,13 @@ function pollMatchData(event) {
 				var response = JSON.parse(data.responseText);
 				if (response.ECODE < 0) {
 					document.getElementById("ql_pickup_match").style.display = "none";
-					GM_log(response.MSG);
-					var msg = {
+					setTimeout(function() {
+						var msg = {
 								"type" : "PQ:matchDataRequest",
 								"username" : request.username
-					};
-					window.postMessage(JSON.stringify(msg), "*");
+						};
+						window.postMessage(JSON.stringify(msg), "*");
+					}, 10000);
 					return;
 				}
 				
