@@ -24,8 +24,9 @@ var SCRIPT_NAME = "Integrated Pickup Information System",
 	SCRIPT_VER	= "0.9",
 	GM_updatingEnabled = "GM_updatingEnabled" in window ? GM_updatingEnabled : false;
 
-var API_URL = 'http://api.ctfpickup.eu:23007/';
+var API_URL = "http://api.ctfpickup.eu:23007/";
 var IRC_CHANNEL = "ctfpickup";
+
 
 // Taken from: http://wiki.greasespot.net/Content_Script_Injection
 function contentEval(source) {
@@ -48,6 +49,20 @@ function contentEval(source) {
 	document.body.removeChild(script);
 }
 
+
+// register command to enable/disable info box through GM menu
+GM_registerMenuCommand(SCRIPT_NAME + "Toggle Information Box", function() {
+	if (GM_getValue("DISPLAY_INFO_BOX", "none") == "none") {
+		document.getElementById("ql_pickup_info_box").style.display = "block";
+		GM_setValue("DISPLAY_INFO_BOX", "block");
+	} else {
+		document.getElementById("ql_pickup_info_box").style.display = "none";
+		GM_setValue("DISPLAY_INFO_BOX", "none");
+	}
+},
+"i");
+
+
 /**
  * Use an auto-update script if integrated updating isn't enabled
  * http://userscripts.org/scripts/show/38017
@@ -59,6 +74,7 @@ function contentEval(source) {
 if (!GM_updatingEnabled) {
   var AutoUpdater_166645={id:166645,days:1,name:SCRIPT_NAME,version:SCRIPT_VER,time:new Date().getTime(),call:function(response,secure){GM_xmlhttpRequest({method:"GET",url:"http"+(secure?"s":"")+"://userscripts.org/scripts/source/"+this.id+".meta.js",onload:function(xpr){AutoUpdater_166645.compare(xpr,response)},onerror:function(xpr){if(secure){AutoUpdater_166645.call(response,false)}}})},enable:function(){GM_registerMenuCommand(this.name+": Enable updates",function(){GM_setValue("updated_166645",new Date().getTime()+"");AutoUpdater_166645.call(true,true)})},compareVersion:function(r_version,l_version){var r_parts=r_version.split("."),l_parts=l_version.split("."),r_len=r_parts.length,l_len=l_parts.length,r=l=0;for(var i=0,len=(r_len>l_len?r_len:l_len);i<len&&r==l;++i){r=+(r_parts[i]||"0");l=+(l_parts[i]||"0")}return(r!==l)?r>l:false},compare:function(xpr,response){this.xversion=/\/\/\s*@version\s+(.+)\s*\n/i.exec(xpr.responseText);this.xname=/\/\/\s*@name\s+(.+)\s*\n/i.exec(xpr.responseText);if((this.xversion)&&(this.xname[1]==this.name)){this.xversion=this.xversion[1];this.xname=this.xname[1]}else{if((xpr.responseText.match("the page you requested doesn't exist"))||(this.xname[1]!=this.name)){GM_setValue("updated_166645","off")}return false}var updated=this.compareVersion(this.xversion,this.version);if(updated&&confirm("A new version of "+this.xname+" is available.\nDo you wish to install the latest version ("+this.xversion+")?")){var path="http://userscripts.org/scripts/source/"+this.id+".user.js";if(window.chrome){prompt("This script can't be updated automatically in Chrome.\nPlease uninstall the old version, and navigate to the URL provided below.",path)}else{try{window.parent.location.href=path}catch(e){}}}else{if(this.xversion&&updated){if(confirm("Do you want to turn off auto updating for this script?")){GM_setValue("updated_166645","off");this.enable();if(window.chrome){alert("You will need to reinstall this script to enable auto-updating.")}else{alert("Automatic updates can be re-enabled for this script from the User Script Commands submenu.")}}}else{if(response){alert("No updates available for "+this.name)}}}},check:function(){if(GM_getValue("updated_166645",0)=="off"){this.enable()}else{if(+this.time>(+GM_getValue("updated_166645",0)+1000*60*60*24*this.days)){GM_setValue("updated_166645",this.time+"");this.call(false,true)}GM_registerMenuCommand(this.name+": Check for updates",function(){GM_setValue("updated_166645",new Date().getTime()+"");AutoUpdater_166645.call(true,true)})}}};AutoUpdater_166645.check();
 }
+
 
 function pollLiveData(event) {
 	var request;
@@ -131,7 +147,8 @@ function pollLiveData(event) {
 			);
 		},
 		onerror: function(XMLHttpRequest, textStatus, error) {
-			document.getElementById("ql_pickup_cnt").innerHTML = "<p style='margin: 3px 0 0 0; font-size: 12px;'><b>Service not available at the moment.</b></p>";
+			document.getElementById("ql_pickup_cnt").innerHTML =
+				"<p style='margin: 3px 0 0 0; font-size: 12px;'><b>Service not available at the moment.</b></p>";
 			document.getElementById("ql_pickup_cnt").style.height = "20px";
 			document.getElementById("ql_pickup_cnt").style.textAlign = "center";
 			setTimeout(function() {
@@ -217,7 +234,8 @@ function pollMatchData(event) {
 window.addEventListener("message", pollMatchData, false);
 
 /*
- * This will handle the team-request-event send by /teams within QL
+ * This will handle single requests made by commands from within QL or this script.
+ * Including /teams, /mappick, /missing, /captains and player stats for the website.
  */
 function handleRequest(event) {
 	var request;
@@ -292,227 +310,240 @@ window.addEventListener("message", handleRequest, false);
  */
 contentEval(function() {
 	
-	PQT = {
-		liveHtml : "" +
-			"<img width='300' height='24' src='http://bot.xurv.org/banner_LivePickupInfo.png' /><br />" +
-			"<div id='ql_pickup_match'>" +
-			"	<p><span id='ql_pickup_match_msg'></span></p>" +
-			"</div>" +
-			"<div id='ql_pickup_cnt'>" +
-			" <div id='ql_pickup_channel'>" +
-			"  <a href='irc://irc.quakenet.org/#ctfpickup'><b>#ctfpickup</b></a><br />" +
-			"  <p><b>Last Game:</b> <span id='ql_pickup_lastgame'></span></p>" +
-			"  <p><b>Added Players:</b> <span id='ql_pickup_added_player'></span></p>" +
-			"  <p><b>Server Link:</b> <span id='ql_pickup_game_sv'></span></p>" +
-			" </div>" +
-			" <div id='ql_pickup_player_stat'>" +
-			"  <br /><b>Player Stats</b><br />" +		
-			"  <table><tr><td><b>Rating:</b> <span id='ql_pickup_player_rating'></span></td>" +
-			"  <td><b>WinRatio:</b> <span id='ql_pickup_player_winratio'></span></td></tr>" +
-			"  <tr><td><b>AvgScore:</b> <span id='ql_pickup_player_score'></span></td>" +
-			"  <td><b>* / 30 / 7:</b> <span id='ql_pickup_player_played'></span></td></tr>" +
-			"  </table>" +
-			" </div>" +
-			"</div>" +
-			"",
-/*		 isStandardUser : function(player) {
-			GM_xmlhttpRequest({
-					synchronous : true,
-					method : 'GET',
-					url : '/profile/summary/' + player,
-					success : function(data) {
-						var pattern = new RegExp("premium_status_0", 'g');
-						return pattern.test(data);
-					}	
-				});
-		},*/
-		handleResponse : function(event) {
-			var response;
-			try {
-				response = JSON.parse(event.data);
-			} catch (e) {
-				GM_log("Couldn't parse event data: " + e);
-				return;
-			}
+PQT = {
+	log: function(msg) {
+		if ("undefined" == typeof(console)) {
+			PQT.log = function() {};
+		} else {
+			PQT.log = function(msg) {console.log("IPIS: " + msg);};
+			PQT.log(msg);
+		}
+	},
+	liveHtml : "" +
+		"<div id='ql_pickup_info_box'>" +
+		"<img width='300' height='24' src='http://bot.xurv.org/banner_LivePickupInfo.png' /><br />" +
+		"<div id='ql_pickup_match'>" +
+		"	<p><span id='ql_pickup_match_msg'></span></p>" +
+		"</div>" +
+		"<div id='ql_pickup_cnt'>" +
+		" <div id='ql_pickup_channel'>" +
+		"  <a href='irc://irc.quakenet.org/#ctfpickup'><b>#ctfpickup</b></a><br />" +
+		"  <p><b>Last Game:</b> <span id='ql_pickup_lastgame'></span></p>" +
+		"  <p><b>Added Players:</b> <span id='ql_pickup_added_player'></span></p>" +
+		"  <p><b>Server Link:</b> <span id='ql_pickup_game_sv'></span></p>" +
+		" </div>" +
+		" <div id='ql_pickup_player_stat'>" +
+		"  <br /><b>Player Stats</b><br />" +		
+		"  <table><tr><td><b>Rating:</b> <span id='ql_pickup_player_rating'></span></td>" +
+		"  <td><b>WinRatio:</b> <span id='ql_pickup_player_winratio'></span></td></tr>" +
+		"  <tr><td><b>AvgScore:</b> <span id='ql_pickup_player_score'></span></td>" +
+		"  <td><b>* / 30 / 7:</b> <span id='ql_pickup_player_played'></span></td></tr>" +
+		"  </table>" +
+		" </div>" +
+		"</div>" +
+		"</div>" +
+		"",
+/*	 isStandardUser : function(player) {
+		GM_xmlhttpRequest({
+				synchronous : true,
+				method : 'GET',
+				url : '/profile/summary/' + player,
+				success : function(data) {
+					var pattern = new RegExp("premium_status_0", 'g');
+					return pattern.test(data);
+				}	
+			});
+	},*/
+	handleResponse : function(event) {
+		var response;
+		try {
+			response = JSON.parse(event.data);
+		} catch (e) {
+			PQT.log("Couldn't parse event data: " + e);
+			return;
+		}
 
-			// only response messages allowed here
-			if (!(response.type)) {
-				return;
-			}
-		
-			if (response.ECODE < 0) {
-				qz_instance.SendGameCommand("echo Can't find any data for this server.;");
-				return;
-			}
+		// only response messages allowed here
+		if (!(response.type)) {
+			return;
+		}
+	
+		if (response.ECODE < 0) {
+			qz_instance.SendGameCommand("echo Can't find any data for this server.;");
+			return;
+		}
 
-			if ("PQ:missResponse" == response.type) {
-				quakelive.serverManager.RefreshServerDetails(quakelive.currentServerId, {
-					onSuccess: function () {
-						var sv = quakelive.serverManager.GetServerInfo(quakelive.currentServerId);
-						
-						if (sv.players.length == 0) {
-							qz_instance.SendGameCommand('echo Could not retrieve any player information from this server yet. Try again in a few seconds.;');
-							return;
-						}
-
-						var p_players = response.TEAM_RED.concat(response.TEAM_BLUE);
-						var missing_players = "^3Missing:^7 ";
-						var c = 0;
-						for (i in p_players) {
-							var found = false;
-							for (j in sv.players) {
-								if (p_players[i].QL_NICK.toLowerCase() == sv.players[j].name.toLowerCase()) {
-									found = true;
-									break;
-								} 
-							}
-							if (!found) {
-								c++;
-								missing_players += p_players[i].QL_NICK + " ";
-							}
-						}
-						if (c == 0) {
-							missing_players += "No one is missing. Pickup is ready to start.";
-						}
-						qz_instance.SendGameCommand('say ' + missing_players + ';');
+		if ("PQ:missResponse" == response.type) {
+			quakelive.serverManager.RefreshServerDetails(quakelive.currentServerId, {
+				onSuccess: function () {
+					var sv = quakelive.serverManager.GetServerInfo(quakelive.currentServerId);
+					
+					if (sv.players.length == 0) {
+						qz_instance.SendGameCommand('echo Could not retrieve any player information from this server yet. Try again in a few seconds.;');
 						return;
 					}
-				});
-			}
-			
-			if ("PQ:mpResponse" == response.type) {
-				try {
-					var mapPick = "";
-					if (response.FORCED_MAP == true) {
-						if (response.MAPS_PER_GAME > 1) {
-							mapPick = "^3Maps:^7 ";
-							var size = response.MAPS.length;
-							for (i in response.MAPS) {
-								mapPick += response.MAPS[i].NAME;
-								if (i != size - 1) {
-									mapPick += ", ";
-								}
-							}
-							
-						} else {
-							mapPick = "^3Map:^7 " + response.MAPS[0].NAME;
+
+					var p_players = response.TEAM_RED.concat(response.TEAM_BLUE);
+					var missing_players = "^3Missing:^7 ";
+					var c = 0;
+					for (i in p_players) {
+						var found = false;
+						for (j in sv.players) {
+							if (p_players[i].QL_NICK.toLowerCase() == sv.players[j].name.toLowerCase()) {
+								found = true;
+								break;
+							} 
 						}
-					} else {
-						mapPick = "^3Map Picker:^7 " + response.MAP_PICKER.QL_NICK;
+						if (!found) {
+							c++;
+							missing_players += p_players[i].QL_NICK + " ";
+						}
 					}
-				} catch (e) {
-					GM_log("An error occured for mappick: " + e);
+					if (c == 0) {
+						missing_players += "No one is missing. Pickup is ready to start.";
+					}
+					qz_instance.SendGameCommand('say ' + missing_players + ';');
 					return;
 				}
-				qz_instance.SendGameCommand('say ' + mapPick + ';');
-				return;
-			}
-			
-			if ("PQ:capResponse" == response.type) {
-				var captains = "^3Captains:^7 ";
-				try {
-					if (response.FORCED_MAP == true && response.MAPS_PER_GAME > 1) {
-						var rPlayers = response.TEAM_RED;
-						var bPlayers = response.TEAM_BLUE;
-						for (i in rPlayers) {
-							if (rPlayers[i].IS_CAPTAIN == true) {
-								captains += "^1Red:^7 " + rPlayers[i].QL_NICK;
-								if (rPlayers[i].HAS_FIRST_DROP == true) {
-									captains += "*";
-								}
-							}
-						}
-						for (i in bPlayers) {
-							if (bPlayers[i].IS_CAPTAIN == true) {
-								captains += " ^4Blue:^7 " + bPlayers[i].QL_NICK;
-								if (bPlayers[i].HAS_FIRST_DROP == true) {
-									captains += "*";
-								}
-							}
-						}
-					} else {
-						captains = "^7Game has no captains.";
-					}
-				} catch (e) {
-					GM_log("An error occured for captains: " + e);
-					return;
-				}
-				qz_instance.SendGameCommand('say ' + captains + ';');
-				return;
-			}
-			
-			if ("PQ:teamResponse" == response.type) {
-				try {
-					var teamR = response.TEAM_RED;
-					var teamB = response.TEAM_BLUE;
-					var mapPicker = response.MAP_PICKER.QL_NICK;
-					var forcedMap = response.FORCED_MAP;
-					var mapsPerGame = response.MAPS_PER_GAME;
-				} catch (e) {
-					GM_log("An error occured for teams: " + e);
-					return;
-				}
-				
-				var teamRString = "^1Red:^7 ";
-				var teamBString = "^4Blue:^7 ";
-				var tmp;
-				for (i in teamR) {
-					tmp = teamR[i].QL_NICK;
-					if (forcedMap == true && mapsPerGame > 1) {
-						if (teamR[i].IS_CAPTAIN == true) {
-							tmp = "^3" + teamR[i].QL_NICK + "^7";
-							if (teamR[i].HAS_FIRST_DROP == true) {
-								tmp += "*";
-							}
-						}
-					}
-					if (teamR[i].QL_NICK == mapPicker && forcedMap == false) {
-						tmp = "^3" + teamR[i].QL_NICK + "^7";
-					}
-					teamRString += tmp + " ";
-				}
-				for (i in teamB) {
-					tmp = teamB[i].QL_NICK;
-					if (forcedMap == true && mapsPerGame > 1) {
-						if (teamB[i].IS_CAPTAIN == true) {
-							tmp = "^3" + teamB[i].QL_NICK + "^7";
-							if (teamB[i].HAS_FIRST_DROP == true) {
-								tmp += "*";
-							}
-						}
-					}
-					if (teamB[i].QL_NICK == mapPicker && forcedMap == false) {
-						tmp = "^3" + teamB[i].QL_NICK + "^7";
-					}
-					teamBString += tmp + " ";
-				}
-				qz_instance.SendGameCommand('say ' + teamRString + ';');
-				setTimeout(function(){
-				    qz_instance.SendGameCommand('say ' + teamBString + ';');
-				}, 700);
-				return;
-			}
-			
-			if ("PQ:playerDataResponse" == response.type) {
-				if (response.ECODE < 0) {
-					$("#ql_pickup_player_stat").html("You may have not yet played a game in that channel." +
-						"<br />No data available.");
-					return;
-				}
-				$("#ql_pickup_player_rating").html(response.RATING);
-				$("#ql_pickup_player_winratio").html(response.WIN_RATIO);
-				$("#ql_pickup_player_score").html(response.AVG_SCORE);
-				$("#ql_pickup_player_played").html(response.PLAYED_OVERALL + " / " +
-												   response.PLAYED_LAST_30_DAYS + " / " +
-												   response.PLAYED_LAST_7_DAYS + " / ");
-			}
+			});
 		}
-	};
-	window.addEventListener("message", PQT.handleResponse, false);
+		
+		if ("PQ:mpResponse" == response.type) {
+			try {
+				var mapPick = "";
+				if (response.FORCED_MAP == true) {
+					if (response.MAPS_PER_GAME > 1) {
+						mapPick = "^3Maps:^7 ";
+						var size = response.MAPS.length;
+						for (i in response.MAPS) {
+							mapPick += response.MAPS[i].NAME;
+							if (i != size - 1) {
+								mapPick += ", ";
+							}
+						}
+						
+					} else {
+						mapPick = "^3Map:^7 " + response.MAPS[0].NAME;
+					}
+				} else {
+					mapPick = "^3Map Picker:^7 " + response.MAP_PICKER.QL_NICK;
+				}
+			} catch (e) {
+				PQT.log("An error occured for mappick: " + e);
+				return;
+			}
+			qz_instance.SendGameCommand('say ' + mapPick + ';');
+			return;
+		}
+		
+		if ("PQ:capResponse" == response.type) {
+			var captains = "^3Captains:^7 ";
+			try {
+				if (response.FORCED_MAP == true && response.MAPS_PER_GAME > 1) {
+					var rPlayers = response.TEAM_RED;
+					var bPlayers = response.TEAM_BLUE;
+					for (i in rPlayers) {
+						if (rPlayers[i].IS_CAPTAIN == true) {
+							captains += "^1Red:^7 " + rPlayers[i].QL_NICK;
+							if (rPlayers[i].HAS_FIRST_DROP == true) {
+								captains += "*";
+							}
+						}
+					}
+					for (i in bPlayers) {
+						if (bPlayers[i].IS_CAPTAIN == true) {
+							captains += " ^4Blue:^7 " + bPlayers[i].QL_NICK;
+							if (bPlayers[i].HAS_FIRST_DROP == true) {
+								captains += "*";
+							}
+						}
+					}
+				} else {
+					captains = "^7Game has no captains.";
+				}
+			} catch (e) {
+				PQT.log("An error occured for captains: " + e);
+				return;
+			}
+			qz_instance.SendGameCommand('say ' + captains + ';');
+			return;
+		}
+		
+		if ("PQ:teamResponse" == response.type) {
+			try {
+				var teamR = response.TEAM_RED;
+				var teamB = response.TEAM_BLUE;
+				var mapPicker = response.MAP_PICKER.QL_NICK;
+				var forcedMap = response.FORCED_MAP;
+				var mapsPerGame = response.MAPS_PER_GAME;
+			} catch (e) {
+				PQT.log("An error occured for teams: " + e);
+				return;
+			}
+			
+			var teamRString = "^1Red:^7 ";
+			var teamBString = "^4Blue:^7 ";
+			var tmp;
+			for (i in teamR) {
+				tmp = teamR[i].QL_NICK;
+				if (forcedMap == true && mapsPerGame > 1) {
+					if (teamR[i].IS_CAPTAIN == true) {
+						tmp = "^3" + teamR[i].QL_NICK + "^7";
+						if (teamR[i].HAS_FIRST_DROP == true) {
+							tmp += "*";
+						}
+					}
+				}
+				if (teamR[i].QL_NICK == mapPicker && forcedMap == false) {
+					tmp = "^3" + teamR[i].QL_NICK + "^7";
+				}
+				teamRString += tmp + " ";
+			}
+			for (i in teamB) {
+				tmp = teamB[i].QL_NICK;
+				if (forcedMap == true && mapsPerGame > 1) {
+					if (teamB[i].IS_CAPTAIN == true) {
+						tmp = "^3" + teamB[i].QL_NICK + "^7";
+						if (teamB[i].HAS_FIRST_DROP == true) {
+							tmp += "*";
+						}
+					}
+				}
+				if (teamB[i].QL_NICK == mapPicker && forcedMap == false) {
+					tmp = "^3" + teamB[i].QL_NICK + "^7";
+				}
+				teamBString += tmp + " ";
+			}
+			qz_instance.SendGameCommand('say ' + teamRString + ';');
+			setTimeout(function(){
+				qz_instance.SendGameCommand('say ' + teamBString + ';');
+			}, 700);
+			return;
+		}
+		
+		if ("PQ:playerDataResponse" == response.type) {
+			if (response.ECODE < 0) {
+				$("#ql_pickup_player_stat").html("You may have not yet played a game in that channel." +
+					"<br />No data available.");
+				return;
+			}
+			$("#ql_pickup_player_rating").html(response.RATING);
+			$("#ql_pickup_player_winratio").html(response.WIN_RATIO);
+			$("#ql_pickup_player_score").html(response.AVG_SCORE);
+			$("#ql_pickup_player_played").html(response.PLAYED_OVERALL + " / " +
+											   response.PLAYED_LAST_30_DAYS + " / " +
+											   response.PLAYED_LAST_7_DAYS + " / ");
+		}
+	}
+};
+window.addEventListener("message", PQT.handleResponse, false);
 });
 
 GM_addStyle(	
 		"" +
+		"#ql_pickup_info_box { " +
+		"    display: " + GM_getValue("DISPLAY_INFO_BOX", "none") +";" +
+		"}" +
 		"#ql_pickup_cnt {" +
 		"    width: 298px;" +
 		"    height: 130px;" +
@@ -573,6 +604,10 @@ GM_addStyle(
 contentEval(function() {
 	var $ui, $tb, intStatusTop, tries = 200;
 	intStatusTop = setInterval(function() {
+		if ("undefined" == typeof(quakelive)) {
+			return;
+		}
+		
 		$ui = $("#post_spon_content");
 		$tb = $ui.find("#my_server");
 		
@@ -597,9 +632,9 @@ contentEval(function() {
 		window.postMessage(JSON.stringify(msg), "*");
 
 		msg = {
-				"type" : "PQ:matchDataRequest",
-				"username" : quakelive.username
-			};
+			"type" : "PQ:matchDataRequest",
+			"username" : quakelive.username
+		};
 		window.postMessage(JSON.stringify(msg), "*");
 	}, 100);
 });
