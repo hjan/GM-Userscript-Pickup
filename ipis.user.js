@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Integrated Pickup Information System
 // @namespace      Pickup
-// @version        1.0
+// @version        1.1
 // @license        GPL version 3 or any later version; http://www.gnu.org/copyleft/gpl.html
 // @description    Integration of pickup in Quake Live. Informations can be retrieved in-game and on the website.
 // @author         smove
@@ -21,7 +21,7 @@
 
 // a few things needed for update functionality
 var SCRIPT_NAME = "Integrated Pickup Information System",
-	SCRIPT_VER	= "1.0",
+	SCRIPT_VER	= "1.1",
 	GM_updatingEnabled = "GM_updatingEnabled" in window ? GM_updatingEnabled : false;
 
 var DOLITTLE = function () {};
